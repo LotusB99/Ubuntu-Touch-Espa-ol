@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ubuntu Touch Launcher</string>
+    <string name="accessibility_service_description">Permite usar gestos de navegación: desliza desde el borde derecho para volver, desde abajo hacia arriba para ir a la pantalla de inicio y mantén pulsado para abrir las aplicaciones recientes.</string>
+</resources>
