@@ -1,0 +1,409 @@
+package com.example.launcher
+
+import android.app.role.RoleManager
+import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.view.View
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+
+class LauncherSettingsActivity : AppCompatActivity() {
+
+    private lateinit var btnBack: ImageView
+
+    private lateinit var launcherStatus: ImageView
+    private lateinit var launcherButton: Button
+    private lateinit var launcherContainer: LinearLayout
+
+    private lateinit var overlayStatus: ImageView
+    private lateinit var overlayButton: Button
+    private lateinit var overlayContainer: LinearLayout
+    
+    private lateinit var accessibilityStatus: ImageView
+    private lateinit var accessibilityButton: Button
+    private lateinit var accessibilityContainer: LinearLayout
+    
+    private lateinit var notificationStatus: ImageView
+    private lateinit var notificationButton: Button
+    private lateinit var notificationContainer: LinearLayout
+
+    private lateinit var restrictedButton: Button
+    private lateinit var restrictedContainer: LinearLayout
+
+    private lateinit var allPermissionsGranted: TextView
+
+    private lateinit var aboutContainer: LinearLayout
+    private lateinit var supportContainer: LinearLayout
+    private lateinit var versionContainer: LinearLayout
+    private lateinit var developer1: TextView
+    private lateinit var developer2: TextView
+
+    private lateinit var iconShapeManager: IconShapeManager
+    private lateinit var shapeOriginal: LinearLayout
+    private lateinit var shapeSquircle: LinearLayout
+    private lateinit var shapeCircle: LinearLayout
+    private lateinit var shapeRoundedSquare: LinearLayout
+    private lateinit var shapeTeardrop: LinearLayout
+
+    // Links dos desenvolvedores (substitua pelos links reais)
+    private val aboutLink = "https://github.com/6uy-1nc06n1t0/Ubuntu-Touch-Launcher" // Link sobre o launcher
+    private val support = "https://github.com/6uy-1nc06n1t0/Ubuntu-Touch-Launcher/issues"
+    private val aboutVersion = "https://github.com/6uy-1nc06n1t0/Ubuntu-Touch-Launcher/releases"
+    private val developer1Link = "https://github.com/6uy-1nc06n1t0" // Link do 6uy_1nc06n1t0
+    private val developer2Link = "https://github.com/WendelDev21" // Link do WenDev21
+
+    private val roleManagerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        updatePermissionStates()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_launcher_settings)
+
+        // First-stage Lomiri-inspired lock-screen preview entry.
+        val content = findViewById<LinearLayout>(R.id.mainContent)
+        val lockPreviewButton = Button(this).apply {
+            text = "Vista previa de pantalla de bloqueo Lomiri"
+            isAllCaps = false
+            setOnClickListener {
+                startActivity(Intent(this@LauncherSettingsActivity, LomiriLockScreenActivity::class.java))
+            }
+        }
+        content.addView(lockPreviewButton, 0)
+        val autoLockCheck = CheckBox(this).apply {
+            text = "Mostrar pantalla Lomiri automáticamente al encender la pantalla"
+            isAllCaps = false
+            setTextColor(0xFFFFFFFF.toInt())
+            buttonTintList = android.content.res.ColorStateList.valueOf(0xFFFF6B2C.toInt())
+            isChecked = getSharedPreferences("lomiri_lockscreen_prefs", MODE_PRIVATE)
+                .getBoolean("auto_show", true)
+            setOnCheckedChangeListener { _, checked ->
+                getSharedPreferences("lomiri_lockscreen_prefs", MODE_PRIVATE).edit()
+                    .putBoolean("auto_show", checked).apply()
+            }
+        }
+        content.addView(autoLockCheck, 1)
+        val lockInfo = TextView(this).apply {
+            text = "Requiere que el servicio de accesibilidad del launcher esté activo. Android puede limitar el inicio automático según la versión y el fabricante. El PIN, patrón o biometría siguen siendo gestionados por Android."
+            setTextColor(0xFFBDBDBD.toInt())
+            textSize = 12f
+            setPadding(16, 4, 16, 16)
+        }
+        content.addView(lockInfo, 2)
+
+        iconShapeManager = IconShapeManager(this)
+        
+        initViews()
+        setupClickListeners()
+        setupIconShapeListeners()
+        updatePermissionStates()
+        updateIconShapeSelection()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updatePermissionStates()
+    }
+
+    private fun initViews() {
+        btnBack = findViewById(R.id.btnBack)
+
+        launcherStatus = findViewById(R.id.launcherStatus)
+        launcherButton = findViewById(R.id.launcherButton)
+        launcherContainer = findViewById(R.id.launcherContainer)
+
+        overlayStatus = findViewById(R.id.overlayStatus)
+        overlayButton = findViewById(R.id.overlayButton)
+        overlayContainer = findViewById(R.id.overlayContainer)
+        
+        accessibilityStatus = findViewById(R.id.accessibilityStatus)
+        accessibilityButton = findViewById(R.id.accessibilityButton)
+        accessibilityContainer = findViewById(R.id.accessibilityContainer)
+        
+        notificationStatus = findViewById(R.id.notificationStatus)
+        notificationButton = findViewById(R.id.notificationButton)
+        notificationContainer = findViewById(R.id.notificationContainer)
+
+        restrictedButton = findViewById(R.id.restrictedButton)
+        restrictedContainer = findViewById(R.id.restrictedContainer)
+
+        allPermissionsGranted = findViewById(R.id.allPermissionsGranted)
+
+        aboutContainer = findViewById(R.id.aboutContainer)
+	supportContainer = findViewById(R.id.supportContainer)
+	versionContainer = findViewById(R.id.versionContainer)
+
+	developer1 = findViewById(R.id.developer1)
+	developer2 = findViewById(R.id.developer2)
+
+
+        shapeOriginal = findViewById(R.id.shapeOriginal)
+        shapeSquircle = findViewById(R.id.shapeSquircle)
+        shapeCircle = findViewById(R.id.shapeCircle)
+        shapeRoundedSquare = findViewById(R.id.shapeRoundedSquare)
+        shapeTeardrop = findViewById(R.id.shapeTeardrop)
+    }
+
+    private fun setupClickListeners() {
+        btnBack.setOnClickListener {
+            finish()
+        }
+
+        launcherButton.setOnClickListener {
+            requestDefaultLauncher()
+        }
+
+        overlayButton.setOnClickListener {
+            requestOverlayPermission()
+        }
+        
+        accessibilityButton.setOnClickListener {
+            requestAccessibilityPermission()
+        }
+        
+        notificationButton.setOnClickListener {
+            requestNotificationListenerPermission()
+        }
+
+        restrictedButton.setOnClickListener {
+            openAppInfo()
+        }
+
+        aboutContainer.setOnClickListener {
+	    openLink(aboutLink)
+	}
+
+	supportContainer.setOnClickListener {
+	    openLink(support)
+	}
+
+	versionContainer.setOnClickListener {
+	    openLink(aboutVersion)
+	}
+
+
+        developer1.setOnClickListener {
+            openLink(developer1Link)
+        }
+
+        developer2.setOnClickListener {
+            openLink(developer2Link)
+        }
+    }
+
+    private fun setupIconShapeListeners() {
+        shapeOriginal.setOnClickListener {
+            iconShapeManager.setIconShape(IconShape.ORIGINAL)
+            updateIconShapeSelection()
+            notifyIconShapeChanged()
+        }
+        
+        shapeSquircle.setOnClickListener {
+            iconShapeManager.setIconShape(IconShape.SQUIRCLE)
+            updateIconShapeSelection()
+            notifyIconShapeChanged()
+        }
+        
+        shapeCircle.setOnClickListener {
+            iconShapeManager.setIconShape(IconShape.CIRCLE)
+            updateIconShapeSelection()
+            notifyIconShapeChanged()
+        }
+        
+        shapeRoundedSquare.setOnClickListener {
+            iconShapeManager.setIconShape(IconShape.ROUNDED_SQUARE)
+            updateIconShapeSelection()
+            notifyIconShapeChanged()
+        }
+        
+        shapeTeardrop.setOnClickListener {
+            iconShapeManager.setIconShape(IconShape.TEARDROP)
+            updateIconShapeSelection()
+            notifyIconShapeChanged()
+        }
+    }
+
+    private fun updateIconShapeSelection() {
+        val currentShape = iconShapeManager.getIconShape()
+        
+        // Resetar todos os backgrounds
+        val shapes = listOf(
+            shapeOriginal to IconShape.ORIGINAL,
+            shapeSquircle to IconShape.SQUIRCLE,
+            shapeCircle to IconShape.CIRCLE,
+            shapeRoundedSquare to IconShape.ROUNDED_SQUARE,
+            shapeTeardrop to IconShape.TEARDROP
+        )
+        
+        shapes.forEach { (view, shape) ->
+            val frameLayout = view.getChildAt(0) as? FrameLayout
+            if (shape == currentShape) {
+                frameLayout?.setBackgroundResource(R.drawable.icon_shape_selected_bg)
+            } else {
+                frameLayout?.setBackgroundResource(R.drawable.icon_shape_selector_bg)
+            }
+        }
+    }
+
+    private fun notifyIconShapeChanged() {
+        val intent = Intent("com.example.launcher.ICON_SHAPE_CHANGED")
+        sendBroadcast(intent)
+    }
+
+    private fun updatePermissionStates() {
+        val launcherDefault = isDefaultLauncher()
+        val overlayGranted = isOverlayPermissionGranted()
+        val accessibilityGranted = isAccessibilityServiceEnabled()
+        val notificationGranted = isNotificationListenerEnabled()
+        
+        updatePermissionUI(launcherContainer, launcherStatus, launcherButton, launcherDefault)
+        updatePermissionUI(overlayContainer, overlayStatus, overlayButton, overlayGranted)
+        updatePermissionUI(accessibilityContainer, accessibilityStatus, accessibilityButton, accessibilityGranted)
+        updatePermissionUI(notificationContainer, notificationStatus, notificationButton, notificationGranted)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            restrictedContainer.visibility = View.VISIBLE
+        } else {
+            restrictedContainer.visibility = View.GONE
+        }
+        
+        val allGranted = launcherDefault && overlayGranted && accessibilityGranted && notificationGranted
+        
+        if (allGranted) {
+            allPermissionsGranted.visibility = View.VISIBLE
+        } else {
+            allPermissionsGranted.visibility = View.GONE
+        }
+    }
+
+    private fun updatePermissionUI(container: LinearLayout, statusIcon: ImageView, button: Button, isGranted: Boolean) {
+        if (isGranted) {
+            statusIcon.setImageResource(R.drawable.ic_check_circle)
+            statusIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+            button.visibility = View.GONE
+            container.alpha = 0.7f
+        } else {
+            statusIcon.setImageResource(R.drawable.ic_warning)
+            statusIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
+            button.visibility = View.VISIBLE
+            container.alpha = 1f
+        }
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        val currentLauncher = resolveInfo?.activityInfo?.packageName
+        return currentLauncher == packageName
+    }
+
+    private fun requestDefaultLauncher() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                if (!roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
+                    val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)
+                    roleManagerLauncher.launch(intent)
+                }
+            }
+        } else {
+            val intent = Intent(Intent.ACTION_MAIN)
+            intent.addCategory(Intent.CATEGORY_HOME)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            
+            val componentName = ComponentName(this, MainActivity::class.java)
+            packageManager.setComponentEnabledSetting(
+                componentName,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            
+            startActivity(Intent.createChooser(intent, "Selecciona el launcher predeterminado"))
+        }
+    }
+    
+    private fun isOverlayPermissionGranted(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+    }
+    
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityEnabled = try {
+            Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED)
+        } catch (e: Settings.SettingNotFoundException) {
+            0
+        }
+        
+        if (accessibilityEnabled == 1) {
+            val settingValue = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (settingValue != null) {
+                val colonSplitter = settingValue.split(":")
+                for (componentName in colonSplitter) {
+                    if (componentName.contains(packageName) && 
+                        componentName.contains("NavigationGestureService")) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+    
+    private fun isNotificationListenerEnabled(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat?.contains(packageName) == true
+    }
+    
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+    }
+    
+    private fun requestAccessibilityPermission() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        startActivity(intent)
+    }
+    
+    private fun requestNotificationListenerPermission() {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun openAppInfo() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        intent.data = Uri.parse("package:$packageName")
+        startActivity(intent)
+    }
+
+    private fun openLink(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        startActivity(intent)
+    }
+}
+
